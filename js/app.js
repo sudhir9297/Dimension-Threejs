@@ -3,22 +3,26 @@ import {
   WebGLRenderer,
   PerspectiveCamera,
   LoadingManager,
-  ShaderMaterial,
-  DoubleSide,
-  Vector4,
   BoxBufferGeometry,
   Mesh,
+  MeshStandardMaterial,
+  Vector3,
+  ACESFilmicToneMapping,
+  sRGBEncoding,
+  BoxHelper,
 } from "three";
 import { OrbitControls } from "./utils/orbitControl";
 import { OrbitControlsGizmo } from "./utils/Gizmo";
+
+import { RayysFacingCamera } from "./utils/RayysFacingCamera";
+import { RayysLinearDimension } from "./utils/RayysLinearDimension";
+
+import { ModelLoader } from "./manager/modelManager";
 
 import HdrFile from "../hdr/default.hdr";
 import { HDRMapLoader } from "./manager/textureLoader";
 
 import { Pane } from "tweakpane";
-
-import fragment from "./shader/fragment.glsl";
-import vertex from "./shader/vertex.glsl";
 
 export default class Sketch {
   constructor(options) {
@@ -30,7 +34,10 @@ export default class Sketch {
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setClearColor(0x151515, 1);
+    this.renderer.setClearColor(0x8fb9ab, 1);
+    this.renderer.toneMapping = ACESFilmicToneMapping;
+    this.renderer.outputEncoding = sRGBEncoding;
+    this.renderer.toneMappingExposure = 1;
 
     this.container.appendChild(this.renderer.domElement);
 
@@ -40,14 +47,30 @@ export default class Sketch {
       0.001,
       1000
     );
-    this.camera.position.set(2, 2, 2);
+    this.camera.position.set(5, 5, 5);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
     this.controlsGizmo = new OrbitControlsGizmo(this.controls, {
       size: 100,
       padding: 8,
     });
-
     this.container.appendChild(this.controlsGizmo.domElement);
+
+    this.facingCamera = new RayysFacingCamera(this.camera);
+    this.dim0 = new RayysLinearDimension(
+      this.container,
+      this.renderer,
+      this.camera
+    );
+    this.dim1 = new RayysLinearDimension(
+      this.container,
+      this.renderer,
+      this.camera
+    );
+    this.dim2 = new RayysLinearDimension(
+      this.container,
+      this.renderer,
+      this.camera
+    );
 
     this.time = 0;
 
@@ -76,13 +99,13 @@ export default class Sketch {
     HDRMapLoader(HdrFile, this.renderer, this.scene, this.manager);
   };
 
-  settings() {
+  settings = () => {
     let that = this;
     this.settings = {
-      progress: 0,
+      transform: { x: 12, y: 14, z: 18 },
     };
     this.pane = new Pane({ title: "Parameters" });
-  }
+  };
 
   resize = () => {
     this.width = this.container.offsetWidth;
@@ -92,28 +115,95 @@ export default class Sketch {
     this.camera.updateProjectionMatrix();
   };
 
-  addObjects() {
+  addObjects = () => {
     let that = this;
-    this.material = new ShaderMaterial({
-      extensions: {
-        derivatives: "#extension GL_OES_standard_derivatives : enable",
-      },
-      side: DoubleSide,
-      uniforms: {
-        time: { value: 0 },
-        resolution: { value: new Vector4() },
-      },
-      // wireframe: true,
-      // transparent: true,
-      vertexShader: vertex,
-      fragmentShader: fragment,
+    const Sphere =
+      "https://default-vessel.s3.ap-south-1.amazonaws.com/s_glb.glb";
+
+    this.loader = new ModelLoader();
+    const model = this.loader.loadFromUrl(Sphere);
+
+    model.then((gltf) => {
+      this.addDimension(gltf.scene.children[0]);
+      const box = new BoxHelper(gltf.scene.children[0], 0xffff00);
+      this.scene.add(box);
+      this.scene.add(gltf.scene);
     });
 
-    this.geometry = new BoxBufferGeometry(1, 1, 1);
+    this.material = new MeshStandardMaterial();
+    this.geometry = new BoxBufferGeometry(12, 14, 18);
+    this.Box = new Mesh(this.geometry, this.material);
+    this.Box.geometry.computeBoundingBox();
+    // const box = new BoxHelper(this.Box, 0xffff00);
+    // this.scene.add(box);
+    // this.scene.add(this.Box);
+    // this.addDimension(this.Box);
+  };
 
-    this.plane = new Mesh(this.geometry, this.material);
-    this.scene.add(this.plane);
-  }
+  addDimension = (mesh) => {
+    mesh.geometry.computeBoundingBox();
+
+    this.facingCamera.cb.facingDirChange.push((event) => {
+      let facingDir = this.facingCamera.dirs[event.current.best];
+
+      if (this.dim0.node !== undefined) {
+        this.dim0.detach();
+      }
+      if (this.dim1.node !== undefined) {
+        this.dim1.detach();
+      }
+      if (this.dim2.node !== undefined) {
+        this.dim2.detach();
+      }
+
+      var bbox = mesh.geometry.boundingBox;
+
+      if (Math.abs(facingDir.x) === 1) {
+        let from = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+        let to = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+        let newDimension = this.dim0.create(from, to, facingDir);
+        mesh.add(newDimension);
+
+        let from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+        let to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.max.z);
+        let newDimension2 = this.dim2.create(from2, to2, { x: 0, y: 0, z: 1 });
+        mesh.add(newDimension2);
+      }
+      if (Math.abs(facingDir.z) === 1) {
+        let from = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+        let to = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+        let newDimension = this.dim1.create(from, to, facingDir);
+        mesh.add(newDimension);
+
+        let from2 = new Vector3(bbox.min.x, bbox.min.y, bbox.max.z);
+        let to2 = new Vector3(bbox.min.x, bbox.max.y, bbox.max.z);
+        let newDimension2 = this.dim2.create(from2, to2, { x: -1, y: 0, z: 0 });
+        mesh.add(newDimension2);
+      }
+      if (Math.abs(facingDir.y) === 1) {
+        let newArray = event.current.facing.slice();
+        let bestIdx = newArray.indexOf(event.current.best);
+        newArray.splice(bestIdx, 1);
+
+        let facingDir0 = this.facingCamera.dirs[newArray[0]];
+        let facingDir1 = this.facingCamera.dirs[newArray[1]];
+
+        let from = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+        let to = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+
+        let newDimension0 = this.dim0.create(from, to, facingDir0);
+        let newDimension1 = this.dim1.create(from, to, facingDir1);
+
+        let from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.min.z);
+        let to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.min.z);
+        let newDimension2 = this.dim2.create(from2, to2, { x: 1, y: 0, z: 0 });
+
+        mesh.add(newDimension0);
+        mesh.add(newDimension1);
+        mesh.add(newDimension2);
+      }
+    });
+  };
 
   stop() {
     this.isPlaying = false;
@@ -129,7 +219,10 @@ export default class Sketch {
   render() {
     if (!this.isPlaying) return;
     this.time += 0.05;
-    this.material.uniforms.time.value = this.time;
+    this.facingCamera.check(this.camera);
+    this.dim0.update(this.camera);
+    this.dim1.update(this.camera);
+    this.dim2.update(this.camera);
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }
