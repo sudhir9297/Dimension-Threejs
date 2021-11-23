@@ -1,16 +1,47 @@
 <!DOCTYPE html>
 <html lang="en">
-<head>
-	<meta charset="UTF-8">
-	<title>Document</title>
-	<style>
-		*{margin:0;padding:0} 
-		canvas{display: block}
-		#container{width: 100vw;height: 100vh}
+  <head>
+    <meta charset="UTF-8" />
+    <title>Document</title>
+    <style>
+      * {
+        margin: 0;
+        padding: 0;
+      }
+      canvas {
+        display: block;
+      }
+      #container {
+        width: 100vw;
+        height: 100vh;
+      }
+
+      .obit-controls-gizmo {
+        position: absolute;
+        width: 100px;
+        height: 100px;
+        bottom: 0.5em;
+        left: 0.5em;
+        z-index: 1000;
+        background-color: #fff0;
+        border-radius: 100%;
+        transition: background-color 0.15s linear;
+        cursor: pointer;
+      }
+
+      .obit-controls-gizmo.dragging,
+      .obit-controls-gizmo:hover {
+        background-color: #fff3;
+      }
+
+      .obit-controls-gizmo.inactive {
+        pointer-events: none;
+        background-color: #fff0 !important;
+      }
     </style>
-</head>
-<body>
-	<div id="container"></div>
-	<script src="js/app.js"></script>
-</body>
+  </head>
+  <body>
+    <div id="container"></div>
+    <script src="js/app.js"></script>
+  </body>
 </html>

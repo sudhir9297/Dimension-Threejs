@@ -1,91 +1,117 @@
-import * as THREE from "three";
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-// import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
+import {
+  Scene,
+  WebGLRenderer,
+  PerspectiveCamera,
+  LoadingManager,
+  ShaderMaterial,
+  DoubleSide,
+  Vector4,
+  BoxBufferGeometry,
+  Mesh,
+} from "three";
+import { OrbitControls } from "./utils/orbitControl";
+import { OrbitControlsGizmo } from "./utils/Gizmo";
+
+import HdrFile from "../hdr/default.hdr";
+import { HDRMapLoader } from "./manager/textureLoader";
+
+import { Pane } from "tweakpane";
 
 import fragment from "./shader/fragment.glsl";
 import vertex from "./shader/vertex.glsl";
-import * as dat from "dat.gui";
-import gsap from "gsap";
-
 
 export default class Sketch {
   constructor(options) {
-    this.scene = new THREE.Scene();
+    this.scene = new Scene();
 
     this.container = options.dom;
     this.width = this.container.offsetWidth;
     this.height = this.container.offsetHeight;
-    this.renderer = new THREE.WebGLRenderer();
-    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2))
+    this.renderer = new WebGLRenderer({ antialias: true });
+    this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setClearColor(0xeeeeee, 1); 
+    this.renderer.setClearColor(0x151515, 1);
 
     this.container.appendChild(this.renderer.domElement);
 
-    this.camera = new THREE.PerspectiveCamera(
+    this.camera = new PerspectiveCamera(
       70,
       window.innerWidth / window.innerHeight,
       0.001,
       1000
     );
-
-    // var frustumSize = 10;
-    // var aspect = window.innerWidth / window.innerHeight;
-    // this.camera = new THREE.OrthographicCamera( frustumSize * aspect / - 2, frustumSize * aspect / 2, frustumSize / 2, frustumSize / - 2, -1000, 1000 );
-    this.camera.position.set(0, 0, 2);
+    this.camera.position.set(2, 2, 2);
     this.controls = new OrbitControls(this.camera, this.renderer.domElement);
+    this.controlsGizmo = new OrbitControlsGizmo(this.controls, {
+      size: 100,
+      padding: 8,
+    });
+
+    this.container.appendChild(this.controlsGizmo.domElement);
+
     this.time = 0;
 
     this.isPlaying = true;
-    
+
+    this.manager = new LoadingManager();
+    this.manager.onProgress = (url, itemsLoaded, itemsTotal) => {
+      const ProgressVal = (itemsLoaded / itemsTotal) * 100;
+
+      if (ProgressVal === 100) {
+        console.log("Scene Loaded");
+      }
+    };
+
     this.addObjects();
     this.resize();
     this.render();
-    this.setupResize();
-    // this.settings();
+
+    this.loadHDR();
+    this.settings();
+
+    window.addEventListener("resize", this.resize);
   }
+
+  loadHDR = () => {
+    HDRMapLoader(HdrFile, this.renderer, this.scene, this.manager);
+  };
 
   settings() {
     let that = this;
     this.settings = {
       progress: 0,
     };
-    this.gui = new dat.GUI();
-    this.gui.add(this.settings, "progress", 0, 1, 0.01);
+    this.pane = new Pane({ title: "Parameters" });
   }
 
-  setupResize() {
-    window.addEventListener("resize", this.resize.bind(this));
-  }
-
-  resize() {
+  resize = () => {
     this.width = this.container.offsetWidth;
     this.height = this.container.offsetHeight;
     this.renderer.setSize(this.width, this.height);
     this.camera.aspect = this.width / this.height;
     this.camera.updateProjectionMatrix();
-  }
+  };
 
   addObjects() {
     let that = this;
-    this.material = new THREE.ShaderMaterial({
+    this.material = new ShaderMaterial({
       extensions: {
-        derivatives: "#extension GL_OES_standard_derivatives : enable"
+        derivatives: "#extension GL_OES_standard_derivatives : enable",
       },
-      side: THREE.DoubleSide,
+      side: DoubleSide,
       uniforms: {
         time: { value: 0 },
-        resolution: { value: new THREE.Vector4() },
+        resolution: { value: new Vector4() },
       },
       // wireframe: true,
       // transparent: true,
       vertexShader: vertex,
-      fragmentShader: fragment
+      fragmentShader: fragment,
     });
 
-    this.geometry = new THREE.PlaneGeometry(1, 1, 1, 1);
+    this.geometry = new BoxBufferGeometry(1, 1, 1);
 
-    this.plane = new THREE.Mesh(this.geometry, this.material);
+    this.plane = new Mesh(this.geometry, this.material);
     this.scene.add(this.plane);
   }
 
@@ -94,8 +120,8 @@ export default class Sketch {
   }
 
   play() {
-    if(!this.isPlaying){
-      this.render()
+    if (!this.isPlaying) {
+      this.render();
       this.isPlaying = true;
     }
   }
@@ -110,5 +136,5 @@ export default class Sketch {
 }
 
 new Sketch({
-  dom: document.getElementById("container")
+  dom: document.getElementById("container"),
 });
