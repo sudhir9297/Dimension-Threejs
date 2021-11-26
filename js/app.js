@@ -34,7 +34,7 @@ export default class Sketch {
     this.renderer = new WebGLRenderer({ antialias: true });
     this.renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
     this.renderer.setSize(this.width, this.height);
-    this.renderer.setClearColor(0x8fb9ab, 1);
+    this.renderer.setClearColor(0x303030, 1);
     this.renderer.toneMapping = ACESFilmicToneMapping;
     this.renderer.outputEncoding = sRGBEncoding;
     this.renderer.toneMappingExposure = 1;
@@ -124,17 +124,18 @@ export default class Sketch {
     const model = this.loader.loadFromUrl(Sphere);
 
     model.then((gltf) => {
+      // gltf.scene.scale.set(1, 4, 6);
       this.addDimension(gltf.scene.children[0]);
-      const box = new BoxHelper(gltf.scene.children[0], 0xffff00);
+      const box = new BoxHelper(gltf.scene.children[0], 0xffffff);
       this.scene.add(box);
       this.scene.add(gltf.scene);
     });
 
-    this.material = new MeshStandardMaterial();
-    this.geometry = new BoxBufferGeometry(12, 14, 18);
-    this.Box = new Mesh(this.geometry, this.material);
-    this.Box.geometry.computeBoundingBox();
-    // const box = new BoxHelper(this.Box, 0xffff00);
+    // this.material = new MeshStandardMaterial();
+    // this.geometry = new BoxBufferGeometry(2, 2, 2);
+    // this.Box = new Mesh(this.geometry, this.material);
+    // this.Box.geometry.computeBoundingBox();
+    // const box = new BoxHelper(this.Box, 0x151515);
     // this.scene.add(box);
     // this.scene.add(this.Box);
     // this.addDimension(this.Box);
@@ -162,11 +163,36 @@ export default class Sketch {
         let from = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
         let to = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
         let newDimension = this.dim0.create(from, to, facingDir);
-        mesh.add(newDimension);
 
-        let from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
-        let to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.max.z);
-        let newDimension2 = this.dim2.create(from2, to2, { x: 0, y: 0, z: 1 });
+        let from3 = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+        let to3 = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+        let newDimension3 = this.dim1.create(from3, to3, {
+          x: 0,
+          y: 0,
+          z: facingDir.x > 0 ? -1 : 1,
+        });
+        mesh.add(newDimension3);
+
+        let newDimension2, from2, to2;
+        if (facingDir.x > 0) {
+          from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+          to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.max.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: 0,
+            y: 0,
+            z: 1,
+          });
+        } else {
+          from2 = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+          to2 = new Vector3(bbox.min.x, bbox.max.y, bbox.max.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: 0,
+            y: 0,
+            z: -1,
+          });
+        }
+
+        mesh.add(newDimension);
         mesh.add(newDimension2);
       }
       if (Math.abs(facingDir.z) === 1) {
@@ -175,9 +201,33 @@ export default class Sketch {
         let newDimension = this.dim1.create(from, to, facingDir);
         mesh.add(newDimension);
 
-        let from2 = new Vector3(bbox.min.x, bbox.min.y, bbox.max.z);
-        let to2 = new Vector3(bbox.min.x, bbox.max.y, bbox.max.z);
-        let newDimension2 = this.dim2.create(from2, to2, { x: -1, y: 0, z: 0 });
+        let from3 = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+        let to3 = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+        let newDimension3 = this.dim0.create(from3, to3, {
+          x: facingDir.z < 0 ? -1 : 1,
+          y: 0,
+          z: 0,
+        });
+        mesh.add(newDimension3);
+
+        let newDimension2, from2, to2;
+        if (facingDir.z > 0) {
+          from2 = new Vector3(bbox.min.x, bbox.min.y, bbox.max.z);
+          to2 = new Vector3(bbox.min.x, bbox.max.y, bbox.max.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: -1,
+            y: 0,
+            z: 0,
+          });
+        } else {
+          from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.min.z);
+          to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.min.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: 1,
+            y: 0,
+            z: 0,
+          });
+        }
         mesh.add(newDimension2);
       }
       if (Math.abs(facingDir.y) === 1) {
@@ -194,9 +244,40 @@ export default class Sketch {
         let newDimension0 = this.dim0.create(from, to, facingDir0);
         let newDimension1 = this.dim1.create(from, to, facingDir1);
 
-        let from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.min.z);
-        let to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.min.z);
-        let newDimension2 = this.dim2.create(from2, to2, { x: 1, y: 0, z: 0 });
+        let newDimension2, from2, to2;
+        if (facingDir0.x > 0 && facingDir1.z > 0) {
+          from2 = new Vector3(bbox.min.x, bbox.min.y, bbox.max.z);
+          to2 = new Vector3(bbox.min.x, bbox.max.y, bbox.max.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: -1,
+            y: 0,
+            z: 0,
+          });
+        } else if (facingDir0.x > 0 && facingDir1.z < 0) {
+          from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.max.z);
+          to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.max.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: 0,
+            y: 0,
+            z: 1,
+          });
+        } else if (facingDir0.x < 0 && facingDir1.z < 0) {
+          from2 = new Vector3(bbox.max.x, bbox.min.y, bbox.min.z);
+          to2 = new Vector3(bbox.max.x, bbox.max.y, bbox.min.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: 1,
+            y: 0,
+            z: 0,
+          });
+        } else {
+          from2 = new Vector3(bbox.min.x, bbox.min.y, bbox.min.z);
+          to2 = new Vector3(bbox.min.x, bbox.max.y, bbox.min.z);
+          newDimension2 = this.dim2.create(from2, to2, {
+            x: 0,
+            y: 0,
+            z: -1,
+          });
+        }
 
         mesh.add(newDimension0);
         mesh.add(newDimension1);
@@ -223,6 +304,7 @@ export default class Sketch {
     this.dim0.update(this.camera);
     this.dim1.update(this.camera);
     this.dim2.update(this.camera);
+    // this.matLine.resolution.set(window.innerWidth, window.innerHeight);
     requestAnimationFrame(this.render.bind(this));
     this.renderer.render(this.scene, this.camera);
   }

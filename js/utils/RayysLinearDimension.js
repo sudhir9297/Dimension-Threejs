@@ -10,8 +10,8 @@ export class RayysLinearDimension {
       onChange: [],
     };
     this.config = {
-      headLength: 0.2,
-      headWidth: 0.2,
+      headLength: 0.1,
+      headWidth: 0.1,
       units: "mm",
       unitsConverter: function (v) {
         return v;
@@ -86,7 +86,7 @@ export class RayysLinearDimension {
     dir.normalize();
 
     var length = pmax.distanceTo(pmin) / 2;
-    var hex = 0x0;
+    var hex = 0xffffff;
     var arrowHelper0 = new ArrowHelper(
       dir,
       origin,
@@ -95,6 +95,16 @@ export class RayysLinearDimension {
       this.config.headLength,
       this.config.headWidth
     );
+
+    // var scaleVector = new Vector3();
+    // var scaleFactor = 4;
+
+    // var distance = scaleVector
+    //   .subVectors(arrowHelper0.position, camera.position)
+    //   .length();
+
+    // arrowHelper0.scale.set(distance / 10, distance / 10, distance / 10);
+
     this.node.add(arrowHelper0);
 
     dir.negate();
